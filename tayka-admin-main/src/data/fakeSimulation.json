@@ -1,0 +1,47 @@
+[
+  {
+    "scenarioId": "single-drone",
+    "scenarioName": "Tekli drone yaklaşması",
+    "steps": [
+      { "step": 1, "time": "T+00:00", "description": "Radar menziline düşük sinyalli hedef girdi.", "status": "Tespit" },
+      { "step": 2, "time": "T+00:05", "description": "Tehdit tipi: Mini drone, hız: 60 km/s", "status": "Sınıflandırma" },
+      { "step": 3, "time": "T+00:10", "description": "Lazer modülü hedefe kilitlendi.", "status": "Angajman hazırlığı" }
+    ]
+  },
+  {
+    "scenarioId": "swarm-attack",
+    "scenarioName": "Sürü drone saldırısı",
+    "steps": [
+      { "step": 1, "time": "T+00:00", "description": "Birden fazla küçük hedef aynı anda radar ekranına düştü.", "status": "Tespit" },
+      { "step": 2, "time": "T+00:07", "description": "Hedef sayısı tahmini: 8–12; yoğunluk artıyor.", "status": "Sınıflandırma" },
+      { "step": 3, "time": "T+00:12", "description": "Önceliklendirme: En yakın 3 hedef işaretlendi.", "status": "Tehdit önceliği" }
+    ]
+  },
+  {
+    "scenarioId": "rocket-jammer",
+    "scenarioName": "Roket tehdidi + jammer",
+    "steps": [
+      { "step": 1, "time": "T+00:00", "description": "Kısa süreli yüksek hızlı iz tespit edildi.", "status": "Tespit" },
+      { "step": 2, "time": "T+00:03", "description": "Hız profili roket/füze benzeri; uçuş hattı hesaplanıyor.", "status": "Sınıflandırma" },
+      { "step": 3, "time": "T+00:06", "description": "Jammer devrede; iletişim paraziti ölçülüyor.", "status": "Karşı tedbir" }
+    ]
+  },
+  {
+    "scenarioId": "gps-spoofing",
+    "scenarioName": "GPS spoofing şüphesi",
+    "steps": [
+      { "step": 1, "time": "T+00:00", "description": "GNSS konum verisinde ani sapma tespit edildi.", "status": "Tespit" },
+      { "step": 2, "time": "T+00:05", "description": "IMU / GNSS tutarsızlığı doğrulandı; şüpheli sinyal işaretlendi.", "status": "Doğrulama" },
+      { "step": 3, "time": "T+00:12", "description": "Yedek navigasyon moduna geçildi.", "status": "Mitigasyon" }
+    ]
+  },
+  {
+    "scenarioId": "perimeter-breach",
+    "scenarioName": "Perimetre ihlali (kara hedefi)",
+    "steps": [
+      { "step": 1, "time": "T+00:00", "description": "Termal kamerada perimetre hattına yaklaşan hedef görüldü.", "status": "Tespit" },
+      { "step": 2, "time": "T+00:08", "description": "Hedef tip tahmini: İnsan/araç; hız ve yön ölçüldü.", "status": "Sınıflandırma" },
+      { "step": 3, "time": "T+00:15", "description": "Aydınlatma ve siren modülü devreye alındı.", "status": "Caydırma" }
+    ]
+  }
+]

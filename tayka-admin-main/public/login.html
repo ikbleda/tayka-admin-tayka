@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Tayka Admin - Giriş</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        background: #0b1020;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        min-height: 100vh;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .login-container {
+        background: #121827;
+        padding: 32px;
+        border-radius: 16px;
+        width: 320px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+        color: #f9fafb;
+      }
+
+      .login-title {
+        font-size: 20px;
+        font-weight: 600;
+        text-align: center;
+        margin-bottom: 4px;
+      }
+
+      .login-subtitle {
+        font-size: 13px;
+        text-align: center;
+        color: #9ca3af;
+        margin-bottom: 24px;
+      }
+
+      label {
+        display: block;
+        font-size: 13px;
+        margin-bottom: 4px;
+      }
+
+      input[type="email"],
+      input[type="password"] {
+        width: 100%;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #374151;
+        background: #020617;
+        color: #f9fafb;
+        font-size: 14px;
+        box-sizing: border-box;
+      }
+
+      input[type="email"]:focus,
+      input[type="password"]:focus {
+        outline: none;
+        border-color: #38bdf8;
+      }
+
+      .field {
+        margin-bottom: 16px;
+      }
+
+      .login-button {
+        width: 100%;
+        padding: 10px;
+        border-radius: 8px;
+        border: none;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        background: #38bdf8;
+        color: #020617;
+      }
+
+      .login-button:hover {
+        background: #0ea5e9;
+      }
+
+      .helper {
+        font-size: 11px;
+        color: #9ca3af;
+        margin-top: 12px;
+      }
+
+      .helper-code {
+        font-family: monospace;
+        font-size: 11px;
+      }
+
+      .error {
+        font-size: 12px;
+        color: #f97373;
+        margin-bottom: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-container">
+      <div class="login-title">TAYKA Admin Panel</div>
+      <div class="login-subtitle">Giriş Yap</div>
+
+      <div id="error" class="error" style="display: none;">
+        Email veya şifre hatalı.
+      </div>
+
+      <form id="login-form">
+        <div class="field">
+          <label for="email">Email</label>
+          <inputid="email"
+            type="email"
+            placeholder="admin@tayka.com"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="password">Şifre</label>
+          <inputid="password"
+            type="password"
+            placeholder="tayka123"
+            required
+          />
+        </div>
+
+        <button type="submit" class="login-button">Giriş Yap</button>
+
+      </form>
+    </div>
+
+    <script>
+      // Fake (sahte) kullanıcı bilgileri
+      const FAKE_EMAIL = "admin@tayka.com";
+      const FAKE_PASSWORD = "tayka123";
+
+      const form = document.getElementById("login-form");
+      const errorBox = document.getElementById("error");
+
+      form.addEventListener("submit", function (event) {
+        event.preventDefault(); // sayfanın yenilenmesini engelle
+
+        const email = document.getElementById("email").value.trim();
+        const password = document.getElementById("password").value.trim();
+
+        if (email === FAKE_EMAIL && password === FAKE_PASSWORD) {
+          // Geçici auth (kimlik durumu) bilgisini localStorage'a yaz
+          localStorage.setItem("tayka_isAuthenticated", "true");
+          localStorage.setItem("tayka_userEmail", email);
+
+          // Dashboard (ana panel) sayfasına yönlendirme
+          // Gerçekte burayı kendi route (yönlendirme) yapınıza göre değiştireceksiniz
+          window.location.href = "/dashboard.html";
+        } else {
+          errorBox.style.display = "block";
+        }
+      });
+    </script>
+  </body>
+</html>

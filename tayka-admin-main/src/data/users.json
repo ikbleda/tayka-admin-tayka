@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "name": "Test Kullanıcı",
+    "role": "Admin",
+    "status": "Aktif",
+    "lastLogin": "2025-12-01"
+  },
+  {
+    "id": 2,
+    "name": "Operatör 1",
+    "role": "Operator",
+    "status": "Aktif",
+    "lastLogin": "2025-12-03"
+  }
+]
