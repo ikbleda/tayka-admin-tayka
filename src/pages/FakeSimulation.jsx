@@ -121,108 +121,28 @@ export default function FakeSimulation({ variant = 'simulasyon' }) {
   }
 
   function consumeRecommendationEnvelope(envelope) {
-    if (!envelope) return
+    if (!envelope || typeof envelope !== 'object') return
+    const type = String(envelope.type || envelope.kind || envelope.eventType || '').toUpperCase()
+    if (!type) return
+    if (!(type.includes('RECOMMENDATION') || type === 'SIM_RECOMMENDATION')) return
 
-    // Backend often sends: { type: "SIM_EVENT", event: { type: "SIM_RECOMMENDATION", message, payload } }
-    const upper = (v) => String(v || '').toUpperCase()
-    const envType = upper(envelope?.type || envelope?.kind || envelope?.eventType || '')
+    const p = envelope.payload ?? envelope.data ?? envelope
 
-    let event = null
-    if (envelope && typeof envelope === 'object' && envelope.event && typeof envelope.event === 'object') {
-      event = envelope.event
-    }
-
-    const eventType = upper(event?.type || '')
-    const isReco =
-      envType.includes('RECOMMENDATION') ||
-      envType === 'SIM_RECOMMENDATION' ||
-      eventType.includes('RECOMMENDATION') ||
-      eventType === 'SIM_RECOMMENDATION'
-
-    if (!isReco) return
-
-    const p =
-      event?.payload ??
-      event?.data ??
-      envelope.payload ??
-      envelope.data ??
-      envelope
-
-    // If recommendation came with a multi-line message (TESPİT / KOŞULLAR / KAYNAK),
-    // push it through the same log pipeline so Status panel can be derived.
-    const msgText = event?.message || envelope?.message || null
-    if (msgText) {
-      const lines = String(msgText).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
-      for (const line of lines) {
-        addLog?.(line)
-        pushSimOutput?.(line)
-        const updater = parseTelemetryFromLogLine(line)
-        if (updater) setStatusData((prev) => updater(prev || {}))
-      }
-    }
-
+    // Try common shapes: modules as array or object map
+    const modules = p.modules ?? p.metricsByModule ?? p.moduleMetrics ?? p.recommendation?.modules
     let metricsByModule = {}
-    let recommended = null
-    let alternative = null
 
-    // ---- AŞİNA/TAYKA backend shape: payload.options.primaryOption / alternativeOption ----
-    const primary = p?.options?.primaryOption || p?.primaryOption || null
-    const alt = p?.options?.alternativeOption || p?.alternativeOption || null
-
-    const mapKey = (k) => {
-      const up = upper(k)
-      if (up === 'MIXED') return 'KARMA'
-      return up
-    }
-
-    const toMetric = (opt) => {
-      if (!opt) return null
-      const ready = opt?.isReady === true
-      const succ = opt?.successPct
-      const unc = opt?.successUncertaintyPct
-      const succText =
-        succ === undefined || succ === null || succ === ''
-          ? null
-          : `${Math.round(Number(succ))}%${Number.isFinite(Number(unc)) ? ` (±${Math.round(Number(unc))}%)` : ''}`
-
-      const dur = opt?.estimatedEngagementSec
-      const cost = opt?.estimatedCostTry
-      return {
-        success: succText || '0%',
-        duration: dur === undefined || dur === null || dur === '' ? '0 sn' : `${Math.round(Number(dur))} sn`,
-        cost: cost === undefined || cost === null || cost === '' ? '0 ₺' : `${Math.round(Number(cost))} ₺`,
-        status: ready ? 'HAZIR' : 'UYGUN DEĞİL',
-        ready,
-        raw: opt,
+    if (Array.isArray(modules)) {
+      for (const m of modules) {
+        const name = String(m?.name ?? m?.module ?? '').toUpperCase()
+        if (!name) continue
+        const nm = normalizeModuleMetrics(m)
+        if (nm) metricsByModule[name] = nm
       }
-    }
-
-    if (primary?.module) {
-      const k = mapKey(primary.module)
-      metricsByModule[k] = toMetric(primary) || {}
-      recommended = k
-    }
-    if (alt?.module) {
-      const k = mapKey(alt.module)
-      metricsByModule[k] = toMetric(alt) || metricsByModule[k] || {}
-      alternative = k
-    }
-
-    // ---- Generic shapes (older UI / future extensions) ----
-    const modules = p?.modules ?? p?.metricsByModule ?? p?.moduleMetrics ?? p?.recommendation?.modules
-    if (Object.keys(metricsByModule).length === 0 && modules) {
-      if (Array.isArray(modules)) {
-        for (const m of modules) {
-          const name = mapKey(m?.name ?? m?.module ?? '')
-          if (!name) continue
-          const nm = normalizeModuleMetrics(m)
-          if (nm) metricsByModule[name] = nm
-        }
-      } else if (modules && typeof modules === 'object') {
-        metricsByModule = Object.fromEntries(
-          Object.entries(modules).map(([k, v]) => [mapKey(k), normalizeModuleMetrics(v) || {}])
-        )
-      }
+    } else if (modules && typeof modules === 'object') {
+      metricsByModule = Object.fromEntries(
+        Object.entries(modules).map(([k, v]) => [String(k).toUpperCase(), normalizeModuleMetrics(v) || {}])
+      )
     }
 
     // As a fallback, if payload has per-module fields directly
@@ -233,39 +153,12 @@ export default function FakeSimulation({ variant = 'simulasyon' }) {
       }
     }
 
-    // Also hydrate Status panel directly from payload.panel (even if logs are missing)
-    const panel = p?.panel || null
-    if (panel) {
-      setStatusData((prev) => {
-        const next = { ...(prev || {}) }
-        if (panel?.ayazConfidencePct != null) next.trace = { ...(next.trace || {}), ayaz: `${panel.ayazConfidencePct}%` }
-        if (panel?.env) {
-          next.environment = {
-            ...(next.environment || {}),
-            status: panel.env?.condition ?? next.environment?.status,
-            wind: panel.env?.windSpeedMs != null ? `${panel.env.windSpeedMs} m/s` : next.environment?.wind,
-            visibility: panel.env?.visibilityKm != null ? `${panel.env.visibilityKm} km` : next.environment?.visibility,
-          }
-        }
-        if (panel?.ammo) {
-          next.resource = {
-            ...(next.resource || {}),
-            BORAN: panel.ammo?.boranMissileCount != null ? `mühimmat=${panel.ammo.boranMissileCount}` : next.resource?.BORAN,
-            ALBATUR: panel.ammo?.energyReservePct != null ? `enerji=${panel.ammo.energyReservePct}%` : next.resource?.ALBATUR,
-            KARMA: next.resource?.KARMA ?? '-',
-            YURA: next.resource?.YURA ?? '-',
-          }
-        }
-        return next
-      })
-    }
-
     if (Object.keys(metricsByModule).length) {
-      setRecommendation({ metricsByModule, recommended, alternative })
+      setRecommendation({ metricsByModule })
     }
   }
 
-const reconnectAttemptRef = useRef(0)
+  const reconnectAttemptRef = useRef(0)
   const reconnectTimerRef = useRef(null)
 
   function normalizeStatus(s) {
@@ -698,6 +591,101 @@ function parseTelemetryFromLogLine(line) {
 }
 
 
+function mapChoiceToUi(choice) {
+  const c = String(choice || '').toUpperCase()
+  if (!c) return ''
+  if (c === 'MIXED') return 'KARMA'
+  return c
+}
+
+function applyRecommendationFromSimEvent(simEvt) {
+  const payload = simEvt?.payload
+  const msg = simEvt?.message
+
+  // 1) Status panel: backend puts the rich telemetry in the recommendation MESSAGE (multi-line)
+  if (msg) {
+    const lines = String(msg).split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+    for (const line of lines) {
+      const updater = parseTelemetryFromLogLine(line)
+      if (updater) setStatusData((prev) => updater(prev || {}))
+    }
+  }
+
+  // 2) Status panel: also hydrate directly from payload if present (more robust than log parsing)
+  try {
+    const meta = payload?.meta
+    const panel = payload?.panel
+
+    setStatusData((prev) => {
+      let next = prev || {}
+
+      if (meta?.title) next = setDeep(next, ['threat', 'title'], meta.title)
+      if (meta?.threat?.label) next = setDeep(next, ['threat', 'tag'], meta.threat.label)
+      if (meta?.threat?.type) next = setDeep(next, ['threat', 'type'], meta.threat.type)
+      if (meta?.threat?.severity) next = setDeep(next, ['classification', 'level'], String(meta.threat.severity).toLocaleUpperCase('tr-TR'))
+
+      if (panel?.ayazConfidencePct != null) next = setDeep(next, ['trace', 'ayaz'], `${panel.ayazConfidencePct}%`)
+      if (panel?.env?.condition) next = setDeep(next, ['environment', 'status'], panel.env.condition)
+      if (panel?.env?.windSpeedMs != null) next = setDeep(next, ['environment', 'wind'], `${panel.env.windSpeedMs} m/s`)
+      if (panel?.env?.visibilityKm != null) next = setDeep(next, ['environment', 'visibility'], `${panel.env.visibilityKm} km`)
+
+      const missiles = panel?.ammo?.boranMissileCount
+      const energy = panel?.ammo?.energyReservePct
+      if (missiles != null) next = setDeep(next, ['resource', 'BORAN'], `${missiles > 0 ? 'UYGUN' : 'UYGUN DEĞİL'} (mühimmat=${missiles})`)
+      if (energy != null) next = setDeep(next, ['resource', 'ALBATUR'], `${energy >= 45 ? 'UYGUN' : 'UYGUN DEĞİL'} (enerji=${energy}%)`)
+
+      if (meta?.resources) {
+        next = setDeep(next, ['resource', 'KARMA'], meta.resources.mixedReady ? 'UYGUN' : 'UYGUN DEĞİL')
+        next = setDeep(next, ['resource', 'YURA'], meta.resources.yuraReady ? 'UYGUN • PASİF' : 'UYGUN DEĞİL • PASİF')
+      }
+
+      return next
+    })
+  } catch {
+    // ignore
+  }
+
+  // 3) Module cards: metrics come from payload.meta.allOptions (boran/albatur/mixed/yura)
+  const meta = payload?.meta
+  const all = meta?.allOptions
+  const metricsByModule = {}
+
+  function put(key, opt) {
+    if (!opt) return
+    const s = opt?.successPct
+    const u = opt?.successUncertaintyPct
+    const successText = s == null ? null : (u != null ? `${Math.round(Number(s))}% (±${Math.round(Number(u))}%)` : `${Math.round(Number(s))}%`)
+    const durText = opt?.estimatedEngagementSec == null ? null : `${Math.round(Number(opt.estimatedEngagementSec))} sn`
+    const costText = opt?.estimatedCostTry == null ? null : `${Math.round(Number(opt.estimatedCostTry))} ₺`
+    metricsByModule[key] = {
+      success: successText,
+      duration: durText,
+      cost: costText,
+      status: opt?.isReady ? 'UYGUN' : 'UYGUN DEĞİL',
+    }
+  }
+
+  if (all && typeof all === 'object') {
+    put('BORAN', all.boran)
+    put('ALBATUR', all.albatur)
+    put('KARMA', all.mixed)
+    put('YURA', all.yura)
+  }
+
+  const recommended = mapChoiceToUi(meta?.primary)
+  const alternative = mapChoiceToUi(meta?.alternative)
+
+  if (Object.keys(metricsByModule).length || recommended || alternative || msg) {
+    setRecommendation((prev) => ({
+      ...(prev || {}),
+      metricsByModule: Object.keys(metricsByModule).length ? metricsByModule : (prev?.metricsByModule || {}),
+      recommended: recommended || prev?.recommended,
+      alternative: alternative || prev?.alternative,
+      text: msg || prev?.text,
+    }))
+  }
+}
+
 
   useEffect(() => {
     if (mode !== 'backend') return
@@ -810,7 +798,11 @@ function parseTelemetryFromLogLine(line) {
             const shaped = toEventShape(ev)
             if (!shaped) return
 
-            const t = String(shaped.type || '')
+                        const t = String(shaped.type || '')
+            // SIM_RECOMMENDATION carries the full parameter panel (TESPİT/KOŞULLAR/KAYNAK + options) inside event.message/payload.
+            if (t === 'SIM_RECOMMENDATION') {
+              applyRecommendationFromSimEvent(shaped)
+            }
             const resolvedTypes = new Set(['SIM_END', 'SIM_TARGET_NEUTRALIZED', 'SIM_ABORT', 'SIM_ABORTED', 'SIM_FAILED', 'SIM_ERROR'])
             if (t === 'SIM_STARTED') {
               setBackendRunActive(true)
@@ -1054,6 +1046,7 @@ const data = await startSim({
       title={title}
       subtitle={subtitle}
       threatLevel="YÜKSEK"
+      statusData={statusData}
       recommendation={recommendation}
 seed={seed}
 onSeedChange={(v) => {
